@@ -1,15 +1,15 @@
 package com.udacity.asteroidradar.main
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import com.udacity.asteroidradar.Asteroid
 import com.udacity.asteroidradar.PictureOfDay
 import com.udacity.asteroidradar.database.AsteroidDatabase
 import com.udacity.asteroidradar.AsteroidsRepository
+import com.udacity.asteroidradar.api.AsteroidApi
+import com.udacity.asteroidradar.api.AsteroidApiFilter
 import kotlinx.coroutines.launch
+import java.util.logging.Filter
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -24,7 +24,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _navigateToDetailFragment = MutableLiveData<Asteroid?>()
     val navigateToDetailFragment
         get() = _navigateToDetailFragment
-
+    private val asteroidFilterType = MutableLiveData<AsteroidApiFilter>()
     private val mockData = false
     private val _mockAsteroids = MutableLiveData<List<Asteroid>>()
 
@@ -87,4 +87,19 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+            //Transformations
+
+    fun changeFilterType(filter: AsteroidApiFilter){
+        asteroidFilterType.value = filter
+    }
+    private var _asteroids = Transformations.switchMap<AsteroidApiFilter,List<Asteroid>>(asteroidFilterType){
+        when(it){
+            AsteroidApiFilter.WEEK -> repository.weekAsteroids
+            AsteroidApiFilter.TODAY -> repository.todayAsteroids
+            else -> repository.allAsteroids
+        }
+    }
+
+    val asteroidsFilter: LiveData<List<Asteroid>>
+        get() = _asteroids
 }
