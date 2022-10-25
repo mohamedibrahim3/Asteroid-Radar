@@ -6,16 +6,20 @@ import com.udacity.asteroidradar.Asteroid
 import com.udacity.asteroidradar.PictureOfDay
 import com.udacity.asteroidradar.database.AsteroidDatabase
 import com.udacity.asteroidradar.AsteroidsRepository
-import com.udacity.asteroidradar.api.AsteroidApi
-import com.udacity.asteroidradar.api.AsteroidApiFilter
 import kotlinx.coroutines.launch
-import java.util.logging.Filter
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val database = AsteroidDatabase.getInstance(app)
     private val repository = AsteroidsRepository(database)
-    val asteroids = repository.asteroids
+
+    private val asteroidList: MediatorLiveData<List<Asteroid>> = MediatorLiveData()
+    val asteroids: LiveData<List<Asteroid>>
+        get() = asteroidList
+
+    private val savedAsteroids = repository.savedAsteroids
+    private val weekAsteroids = repository.weekAsteroids
+    private val todayAsteroid = repository.todayAsteroids
 
     private val _pictureOfDay = MutableLiveData<PictureOfDay>()
     val pictureOfDay: LiveData<PictureOfDay>
@@ -24,39 +28,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _navigateToDetailFragment = MutableLiveData<Asteroid?>()
     val navigateToDetailFragment
         get() = _navigateToDetailFragment
-    private val asteroidFilterType = MutableLiveData<AsteroidApiFilter>()
-    private val mockData = false
-    private val _mockAsteroids = MutableLiveData<List<Asteroid>>()
 
     init {
-        if(mockData) {
-            mockData()
-        } else {
+        savedAsteroids()
+    }
+
+    fun savedAsteroids() {
+        viewModelScope.launch {
             refreshAsteroids()
             getPictureOfDay()
+            asteroidList.addSource(savedAsteroids) {
+                asteroidList.value = it
+            }
         }
     }
 
-    private fun mockData() {
-
-        val dataList = mutableListOf<Asteroid>()
-
-        var count = 1
-        while (count <= 10) {
-            val data = Asteroid(
-                count.toLong(),
-                "codename:$count",
-                "XXXX-XX-XX",
-                77.0,
-                88.0,
-                99.8,
-                66.6,
-                true)
-            count++
-            dataList.add(data)
+    fun weeksAsteroids() {
+        asteroidList.removeSource(savedAsteroids)
+        asteroidList.removeSource(weekAsteroids)
+        asteroidList.addSource(weekAsteroids) {
+            asteroidList.value = it
         }
+    }
 
-        _mockAsteroids.postValue(dataList)
+    fun todayAsteroids() {
+        asteroidList.removeSource(savedAsteroids)
+        asteroidList.removeSource(weekAsteroids)
+        asteroidList.addSource(todayAsteroid) {
+            asteroidList.value = it
+        }
     }
 
     fun onAsteroidItemClick(data: Asteroid) {
@@ -87,19 +87,5 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-            //Transformations
 
-    fun changeFilterType(filter: AsteroidApiFilter){
-        asteroidFilterType.value = filter
-    }
-    private var _asteroids = Transformations.switchMap<AsteroidApiFilter,List<Asteroid>>(asteroidFilterType){
-        when(it){
-            AsteroidApiFilter.WEEK -> repository.weekAsteroids
-            AsteroidApiFilter.TODAY -> repository.todayAsteroids
-            else -> repository.allAsteroids
-        }
-    }
-
-    val asteroidsFilter: LiveData<List<Asteroid>>
-        get() = _asteroids
 }

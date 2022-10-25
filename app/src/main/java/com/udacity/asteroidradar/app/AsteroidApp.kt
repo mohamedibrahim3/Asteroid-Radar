@@ -11,11 +11,9 @@ import java.util.concurrent.TimeUnit
 class AsteroidApp : Application() {
 
     private val applicationScope = CoroutineScope(Dispatchers.Default)
-    private val debug = false
 
     override fun onCreate() {
         super.onCreate()
-
         delayedInit()
     }
 
@@ -25,31 +23,28 @@ class AsteroidApp : Application() {
 
     private fun setupRecurringWork() {
 
-        val constraints: Constraints = if (debug) {
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
+        val constraints: Constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .setRequiresCharging(true)
+            .apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    setRequiresDeviceIdle(true)
+                }
+            }.build()
+
+
+        val timeUnit = TimeUnit.DAYS
+        val interval: Long = 1
+
+        val repeatingRequest =
+            PeriodicWorkRequestBuilder<RefreshAsteroidsWorker>(interval, timeUnit)
+                .setConstraints(constraints)
                 .build()
-        } else {
-            Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .setRequiresCharging(true)
-                .apply {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        setRequiresDeviceIdle(true)
-                    }
-                }.build()
-        }
-
-        val timeUnit = if(debug) TimeUnit.SECONDS else TimeUnit.DAYS
-        val interval:Long = if(debug) 10 else 1
-
-        val repeatingRequest = PeriodicWorkRequestBuilder<RefreshAsteroidsWorker>(interval, timeUnit)
-            .setConstraints(constraints)
-            .build()
 
         WorkManager.getInstance().enqueueUniquePeriodicWork(
             RefreshAsteroidsWorker.WORK_NAME,
             ExistingPeriodicWorkPolicy.REPLACE,
-            repeatingRequest)
+            repeatingRequest
+        )
     }
 }

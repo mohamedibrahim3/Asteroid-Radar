@@ -5,7 +5,6 @@ import com.udacity.asteroidradar.PictureOfDay
 import retrofit2.http.GET
 import retrofit2.http.Query
 
-enum class AsteroidApiFilter {TODAY, WEEK, SAVED}
 interface IAsteroidApiService {
 
     @GET(NetworkConstants.HTTP_GET_NEO_FEED_PATH)
